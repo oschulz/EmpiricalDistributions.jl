@@ -1,6 +1,16 @@
 # This file is a part of EmpiricalDistributions.jl, licensed under the MIT License (MIT).
 
 
+"""
+    UvBinnedDist <: Distribution{Univariate,Continuous}
+
+Wraps a 1-dimensional histograms and presents it as a binned univariate
+distribution.
+
+Constructor:
+
+    UvBinnedDist(h::Histogram{<:Real,1})
+"""
 struct UvBinnedDist{T <: AbstractFloat} <: Distribution{Univariate,Continuous}
     h::Histogram{<:Real, 1}
     inv_weights::Vector{T}

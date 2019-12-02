@@ -7,6 +7,10 @@
 [![Appveyor Build Status](https://ci.appveyor.com/api/projects/status/github/oschulz/EmpiricalDistributions.jl?branch=master&svg=true)](https://ci.appveyor.com/project/oschulz/EmpiricalDistributions-jl)
 [![Codecov](https://codecov.io/gh/oschulz/EmpiricalDistributions.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/oschulz/EmpiricalDistributions.jl)
 
+A Julia package for empirical probability distributions. Currently
+implements uni- and multivariate binned distributions, backed by
+[StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) histograms.
+
 
 ## Documentation
 

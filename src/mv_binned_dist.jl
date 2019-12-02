@@ -1,5 +1,16 @@
 # This file is a part of EmpiricalDistributions.jl, licensed under the MIT License (MIT).
 
+
+"""
+    UvBinnedDist <: Distribution{Univariate,Continuous}
+
+Wraps a multi-dimensional histograms and presents it as a binned multivariate
+distribution.
+
+Constructor:
+
+    MvBinnedDist(h::Histogram{<:Real,N})
+"""
 struct MvBinnedDist{T, N} <: Distributions.Distribution{Multivariate,Continuous}
     h::StatsBase.Histogram{<:Real, N}
     edges::NTuple{N, <:AbstractVector{T}}
