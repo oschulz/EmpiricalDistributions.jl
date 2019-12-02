@@ -4,6 +4,13 @@ __precompile__(true)
 
 module EmpiricalDistributions
 
-# package code goes here
+using LinearAlgebra
+using Random
+using Statistics
+
+using ArraysOfArrays
+using Distributions
+using StatsBase
+
 
 end # module
