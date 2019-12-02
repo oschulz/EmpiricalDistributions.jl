@@ -3,6 +3,7 @@
 import Test
 Test.@testset "Package EmpiricalDistributions" begin
 
-# test code goes here
+include("test_uv_binned_dist.jl")
+include("test_mv_binned_dist.jl")
 
 end # testset

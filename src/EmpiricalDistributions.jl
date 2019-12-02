@@ -13,4 +13,7 @@ using Distributions
 using StatsBase
 
 
+include("uv_binned_dist.jl")
+include("mv_binned_dist.jl")
+
 end # module
