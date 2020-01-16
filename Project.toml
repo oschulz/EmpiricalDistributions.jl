@@ -12,7 +12,7 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 ArraysOfArrays = "0.4"
-Distributions = "0.21.3"
+Distributions = "0.21.3, 0.22"
 StatsBase = "0.32"
 julia = "1"
 
