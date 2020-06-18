@@ -13,6 +13,7 @@ using Distributions
 using StatsBase
 
 
+include("hist_funcs.jl")
 include("uv_binned_dist.jl")
 include("mv_binned_dist.jl")
 
