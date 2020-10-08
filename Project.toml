@@ -1,6 +1,6 @@
 name = "EmpiricalDistributions"
 uuid = "0bbb1fad-0f24-45fe-94a4-415852c5cc3b"
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
