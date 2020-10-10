@@ -3,12 +3,12 @@
 A Julia package for empirical probability distributions that implement the
 [Distributions.jl](https://github.com/JuliaStats/Distributions.jl) API.
 
-This package currently provides uni- and multivariate binned distributions,
-backed by [StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl)
-histograms.
+This package currently provides uni- and multivariate binned distributions
+that can be created from
+[StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) histograms.
 
-[`UvBinnedDist`](@ref) wraps a 1-dimensional histogram and presents it as
-a (binned) univariate continuous distribution:
+[`UvBinnedDist`](@ref), usually derived from a 1-dimensional histogram,
+represents a binned univariate continuous distribution:
 
 ```julia
 using Distributions, StatsBase
@@ -31,14 +31,20 @@ maximum(uvdist), minimum(uvdist)
 rand(uvdist, 5)
 ```
 
-[`MvBinnedDist`](@ref) does the same for a multi-dimensional histogram,
-and presents it as a (binned) multivariate continuous distribution:
+A binned distribution can be converted back to a histogram:
+
+```julia
+using LinearAlgebra
+Histogram(uvdist) == normalize(uvhist)
+```
+
+
+[`MvBinnedDist`](@ref), usually derived from a multidimensional histogram,
+represents a binned multivariate continuous distribution:
 
 ```julia
 X_mv = rand(MvNormal([3.5, 0.5], [2.0 0.5; 0.5 1.0]), 10^5)
 mvhist = fit(Histogram, (X_mv[1, :], X_mv[2, :]))
-
-using Distributions, EmpiricalDistributions
 
 mvdist = MvBinnedDist(mvhist)
 mvdist isa Distribution{Multivariate,Continuous}

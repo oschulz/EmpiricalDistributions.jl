@@ -2,26 +2,38 @@
 
 
 """
-    MvBinnedDist <: Distribution{Multivariate,Continuous}
+    MvBinnedDist <: StatsBase.Distribution{Multivariate,Continuous}
 
-Wraps a multi-dimensional histograms and presents it as a binned multivariate
-distribution.
+A binned multivariate distribution, usually derived from a histogram.
 
-Constructor:
+Constructors:
 
-    MvBinnedDist(h::Histogram{<:Real,N})
+```julia
+    MvBinnedDist(h::StatsBase.Histogram{<:Real,N})
+    MvBinnedDist{T<:Real}(h::StatsBase.Histogram{<:Real,N})
+```
+
+You can convert a `MvBinnedDist` back to a histogram via 
+
+```julia
+convert(StatsBase.Histogram, dist::MvBinnedDist)
+StatsBase.Histogram(dist::MvBinnedDist)
+```
 """
 struct MvBinnedDist{
     T <: Real,
     N,
-    H <: Histogram{<:Real, N},
+    U <: Real,
+    ET <: NTuple{N,AbstractVector{<:Real}},
     VT <: AbstractVector{T},
-    MT <: AbstractMatrix{T}
+    MT <: AbstractMatrix{T},
+    VU <: AbstractVector{U},
+    AU <: AbstractArray{U,N}
 } <: Distributions.Distribution{Multivariate,Continuous}
-    hist::H
-    _edges::NTuple{N, <:AbstractVector{T}}
-    _cart_inds::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}
-    _probability_edges::VT
+    _edges::ET
+    _bin_pdf::AU
+    _bin_linidx_cdf::VU
+    _closed_left::Bool
     _mean::VT
     _mode::VT
     _var::VT
@@ -31,64 +43,75 @@ end
 export MvBinnedDist
 
 
-function MvBinnedDist(h::StatsBase.Histogram{<:Real, N}, T::DataType = Float64) where {N}
+function MvBinnedDist{T}(h::Histogram{<:Real}) where {T<:Real}
     nh = normalize(h)
 
-    probabilty_widths = nh.weights * inv(sum(nh.weights))
-    probabilty_edges::Vector{T} = Vector{Float64}(undef, length(h.weights) + 1)
-    probabilty_edges[1] = 0
-    for (i, w) in enumerate(probabilty_widths)
-        v = probabilty_edges[i] + probabilty_widths[i]
-        probabilty_edges[i+1] = v > 1 ? 1 : v
-    end
+    edges = nh.edges
+    bin_pdf = nh.weights 
 
-    mean_est = _mean(h)
-    mode_est = _mode(nh)
-    var_est = _var(h, mean = mean_est)
-    cov_est = _cov(h, mean = mean_est)
+    closed_left = nh.closed == :left
+
+    Y = nh.weights
+    X = _bin_centers.(nh.edges)
+    W = _bin_widths.(nh.edges)
+
+    bin_linidx_cdf = cumsum(broadcast(idx -> Y[idx] .* prod(map(getindex, W, idx.I)), vec(CartesianIndices(Y))))
+    @assert last(bin_linidx_cdf) ≈ 1
+    bin_linidx_cdf[end] = 1
+
+    mean_est_tpl = _mean(nh)
+    mean_est = [T.(mean_est_tpl)...]
+    mode_est = [T.(_mode(nh))...]
+    var_est = [T.(_var(nh, mean_est_tpl))...]
+    cov_est = T.(_cov(nh, mean_est_tpl))
 
     return MvBinnedDist(
-        nh,
-        collect.(nh.edges),
-        CartesianIndices(nh.weights),
-        probabilty_edges,
-        mean_est,
-        mode_est,
-        var_est,
-        cov_est
+        edges, bin_pdf, bin_linidx_cdf, closed_left,
+        mean_est, mode_est, var_est, cov_est
+    )
+end
+
+MvBinnedDist(h::Histogram{<:Real}) = MvBinnedDist{float(promote_type(map(eltype, h.edges)...))}(h)
+
+
+function Adapt.adapt_structure(to, d::MvBinnedDist)
+    MvBinnedDist(
+        map(e -> adapt(to, e), d._edges), adapt(to, d._bin_pdf), adapt(to, d._bin_linidx_cdf),
+        adapt(to, d._closed_left), adapt(to, d._mean), adapt(to, d._mode), adapt(to, d._var), adapt(to, d._cov)
     )
 end
 
 
-Base.convert(::Type{Histogram}, d::MvBinnedDist) = d.hist
+Histogram(d::MvBinnedDist) = Histogram(map(Array, d._edges), Array(d._bin_pdf), (d._closed_left ? :left : :right), true)
+Base.convert(::Type{Histogram}, d::MvBinnedDist) = Histogram(d)
 
 
-Base.length(d::MvBinnedDist{T, N}) where {T, N} = N
-Base.size(d::MvBinnedDist{T, N}) where {T, N} = (N,)
-Base.eltype(d::MvBinnedDist{T, N}) where {T, N} = T
+Base.length(d::MvBinnedDist{T,N}) where {T,N} = N
+Base.size(d::MvBinnedDist{T,N}) where {T,N} = (N,)
+Base.eltype(d::MvBinnedDist{T,N}) where {T,N} = T
 
-Statistics.mean(d::MvBinnedDist{T, N}) where {T, N} = d._mean
-StatsBase.mode(d::MvBinnedDist{T, N}) where {T, N} = d._mode
-Statistics.var(d::MvBinnedDist{T, N}) where {T, N} = d._var
-Statistics.cov(d::MvBinnedDist{T, N}) where {T, N} = d._cov
+Statistics.mean(d::MvBinnedDist) = d._mean
+StatsBase.mode(d::MvBinnedDist) = d._mode
+Statistics.var(d::MvBinnedDist) = d._var
+Statistics.cov(d::MvBinnedDist) = d._cov
 
 
-function Distributions._rand!(r::AbstractRNG, d::MvBinnedDist{T,N}, A::AbstractVector{<:Real}) where {T, N}
-    rand!(r, A)
-    next_inds::UnitRange{Int} = searchsorted(d._probability_edges::Vector{T}, A[1]::T)
-    cell_lin_index::Int = min(next_inds.start, next_inds.stop)
-    cell_car_index = d._cart_inds[cell_lin_index]
-    for idim in Base.OneTo(N)
-        i = cell_car_index[idim]
-        sub_int = d._edges[idim][i:i+1]
-        sub_int_width::T = sub_int[2] - sub_int[1]
-        A[idim] = sub_int[1] + sub_int_width * A[idim]
+function Distributions._rand!(rng::AbstractRNG, d::MvBinnedDist{T,N}, A::AbstractVector{<:Real}) where {T,N}
+    @assert length(eachindex(A)) == N
+    u = rand(rng)
+    i = searchsortedfirst(d._bin_linidx_cdf, u)
+    idx_lo = CartesianIndices(d._bin_pdf)[i]
+    idx_hi = idx_lo + CartesianIndex(1, 1)
+    x_lo = map(getindex, d._edges, idx_lo.I)
+    x_hi = map(getindex, d._edges, idx_hi.I)
+    for i in 1:N
+        A[i] = _rand_uniform(rng, T, x_lo[i], x_hi[i])
     end
     return A
 end
 
-function Distributions._rand!(r::AbstractRNG, d::MvBinnedDist{T,N}, A::AbstractMatrix{<:Real}) where {T, N}
-    Distributions._rand!.((r,), (d,), nestedview(A))
+function Distributions._rand!(rng::AbstractRNG, d::MvBinnedDist{T,N}, A::AbstractMatrix{<:Real}) where {T,N}
+    Distributions._rand!.(Ref(rng), (d,), nestedview(A))
     return A
 end
 
@@ -104,17 +127,24 @@ end
 end
 
 
-function Distributions.pdf(d::MvBinnedDist{T,N}, x::AbstractVector{<:Real}) where {T,N}
+function Distributions.pdf(d::MvBinnedDist{T,N,U}, x::AbstractVector{<:Real}) where {T,N,U}
     length(eachindex(x)) == N || throw(ArgumentError("Length of variate doesn't match dimensionality of distribution"))
-    x_tpl = _unsafe_unroll_tuple(x, Val(N))
-    _pdf(d.hist, x_tpl)
+    xs = _unsafe_unroll_tuple(x, Val(N))
+
+    idxs = _find_bin(d._edges, d._closed_left, xs)
+    if checkbounds(Bool, d._bin_pdf, idxs...)
+        @inbounds r = d._bin_pdf[idxs...]
+        convert(U, r)
+    else
+        zero(U)
+    end
 end
 
 
-function Distributions.logpdf(d::MvBinnedDist{T, N}, x::AbstractArray{<:Real, 1}) where {T, N}
+function Distributions.logpdf(d::MvBinnedDist{T,N}, x::AbstractArray{<:Real, 1}) where {T,N}
     return log(pdf(d, x))
 end
 
-function Distributions._logpdf(d::MvBinnedDist{T,N}, x::AbstractArray{<:Real, 1}) where {T, N}
+function Distributions._logpdf(d::MvBinnedDist{T,N}, x::AbstractArray{<:Real, 1}) where {T,N}
     return logpdf(d, x)
 end

@@ -2,27 +2,35 @@
 
 
 """
-    UvBinnedDist <: Distribution{Univariate,Continuous}
+    UvBinnedDist{T<:Real} <: StatsBase.Distribution{Univariate,Continuous}
 
-Wraps a 1-dimensional histograms and presents it as a binned univariate
-distribution.
+A binned univariate distribution, usually derived from a histogram.
 
-Constructor:
+Constructors:
 
-    UvBinnedDist(h::Histogram{<:Real,1})
+```julia
+    UvBinnedDist(h::StatsBase.Histogram{<:Real,1})
+    UvBinnedDist{T<:Real}(h::StatsBase.Histogram{<:Real,1})
+```
+
+You can convert a `UvBinnedDist` back to a histogram via 
+
+```julia
+convert(StatsBase.Histogram, dist::UvBinnedDist)
+StatsBase.Histogram(dist::UvBinnedDist)
+```
 """
 struct UvBinnedDist{
     T <: Real,
-    H <: Histogram{<:Real,1},
-    VT <: AbstractVector{T}
+    U <: Real,
+    VT <: AbstractVector{T},
+    VU <: AbstractVector{U}
 } <: Distribution{Univariate,Continuous}
-    hist::H
-    _inv_weights::VT
-    _volumes::VT
-    _probabilty_edges::VT
-    _probabilty_volumes::VT
-    _probabilty_inv_volumes::VT
-    _acc_prob::VT
+    _edge::VT
+    _edge_cdf::VU
+    _bin_pdf::VU
+    _bin_probmass::VU
+    _closed_left::Bool
     _mean::T
     _mode::T
     _var::T
@@ -32,97 +40,93 @@ end
 export UvBinnedDist
 
 
-function UvBinnedDist(h::Histogram{<:Real, 1}, T::DataType = Float64)
+function UvBinnedDist{T}(h::Histogram{<:Real,1}) where {T<:Real}
     nh = normalize(h)
-    probabilty_widths::Vector{T} = h.weights * inv(sum(h.weights))
-    probabilty_edges::Vector{T} = Vector{Float64}(undef, length(probabilty_widths) + 1)
-    probabilty_edges[firstindex(probabilty_edges)] = 0
-    @inbounds for (i, w) in enumerate(probabilty_widths)
-        probabilty_edges[i+1] = probabilty_edges[i] + probabilty_widths[i]
-    end
-    probabilty_edges[end] = 1
-    volumes = diff(h.edges[1])
 
-    acc_prob::Vector{T} = zeros(T, length(nh.weights))
-    for i in 2:length(acc_prob)
-        acc_prob[i] += acc_prob[i-1] + nh.weights[i-1] * volumes[i-1]
-    end
+    edge = T.(first(nh.edges))
+    closed_left = nh.closed == :left
 
-    mean_est = _mean(h)
-    mode_est = _mode(nh)
-    var_est = _var(h, mean = mean_est)
+    bin_pdf = nh.weights 
+    bin_probmass = bin_pdf .* _bin_widths(edge)
+    bin_probmass .*= inv(sum(bin_probmass))
+
+    edge_cdf = pushfirst!(cumsum(bin_probmass), 0)
+    @assert last(edge_cdf) ≈ 1
+    edge_cdf[end] = 1
+
+    mean_est_tpl = _mean(nh)
+    mean_est = T(first(mean_est_tpl))
+    mode_est = T(first(_mode(nh)))
+    var_est = T(first(_var(nh, mean_est_tpl)))
 
     return UvBinnedDist(
-        nh,
-        inv.(nh.weights),
-        volumes,
-        probabilty_edges,
-        probabilty_widths,
-        inv.(probabilty_widths),
-        acc_prob,
-        first(mean_est),
-        first(mode_est),
-        first(var_est)
+        edge, edge_cdf, bin_pdf, bin_probmass, closed_left,
+        mean_est, mode_est, var_est
+    )
+end
+
+UvBinnedDist(h::Histogram{<:Real,1}) = UvBinnedDist{float(eltype(first(h.edges)))}(h)
+
+
+function Adapt.adapt_structure(to, d::UvBinnedDist)
+    UvBinnedDist(
+        adapt(to, d._edge), adapt(to, d._edge_cdf),
+        adapt(to, d._bin_pdf), adapt(to, d._bin_probmass),
+        d._closed_left, d._mean, d._mode, d._var
     )
 end
 
 
-Base.convert(::Type{Histogram}, d::UvBinnedDist) = d.hist
+Histogram(d::UvBinnedDist) = Histogram((Array(d._edge),), Array(d._bin_pdf), (d._closed_left ? :left : :right), true)
+Base.convert(::Type{Histogram}, d::UvBinnedDist) = Histogram(d)
 
 
-Base.length(d::UvBinnedDist{T}) where {T} = 1
-Base.size(d::UvBinnedDist{T}) where T = ()
+Base.length(d::UvBinnedDist) = 1
+Base.size(d::UvBinnedDist) = ()
 Base.eltype(d::UvBinnedDist{T}) where {T} = T
 
 
-Statistics.mean(d::UvBinnedDist{T, N}) where {T, N} = d._mean
-StatsBase.mode(d::UvBinnedDist{T, N}) where {T, N} = d._mode
-Statistics.var(d::UvBinnedDist{T, N}) where {T, N} = d._var
-Statistics.cov(d::UvBinnedDist{T, N}) where {T, N} = d._cov
+Statistics.mean(d::UvBinnedDist) = d._mean
+StatsBase.mode(d::UvBinnedDist) = d._mode
+Statistics.var(d::UvBinnedDist) = d._var
 
-Distributions.minimum(d::UvBinnedDist) = first(d.hist.edges[1])
-Distributions.maximum(d::UvBinnedDist) = last(d.hist.edges[1])
+Distributions.minimum(d::UvBinnedDist) = first(d._edge)
+Distributions.maximum(d::UvBinnedDist) = last(d._edge)
 
-Distributions.pdf(d::UvBinnedDist, x::Real) = _pdf(d.hist, (x,))
+
+function Distributions.pdf(d::UvBinnedDist{T,U}, x::Real) where {T,U}
+    if insupport(d, x)
+        i = _find_bin(d._edge, d._closed_left, x)
+        convert(U, d._bin_pdf[i])
+    else
+        zero(U)
+    end
+end
 
 Distributions.logpdf(d::UvBinnedDist, x::Real) = log(pdf(d, x))
 
 
-# ToDo: Efficient implementation, should cache CDF
-function Distributions.cdf(d::UvBinnedDist, x::Real)
-    i::Int = StatsBase.binindex(d.hist, x)
-    p::T = @inbounds sum(d.hist.weights[1:i-1] .* d._volumes[1:i-1])
-    p += (x - d.hist.edges[1][i]) * d.hist.weights[i]
-    return p
+function Distributions.cdf(d::UvBinnedDist{T}, x::Real) where T
+    if x <= minimum(d)
+        zero(T)
+    elseif x >= maximum(d)
+        one(T)
+    else
+        _linear_interpol(d._edge, d._edge_cdf, x)
+    end
 end
 
 
-function Distributions.quantile(d::UvBinnedDist{T}, x::Real)::T where {T <: AbstractFloat}
-    r::UnitRange{Int} = searchsorted(d._acc_prob, x)
-    idx::Int = min(r.start, r.stop)
-    p::T = d._acc_prob[ idx ]
-    q::T = d.hist.edges[1][idx]
-    missing_p::T = x - p
-    inv_weight::T = d._inv_weights[idx]
-    if !isinf(inv_weight)
-        q += missing_p * inv_weight
-    end
-    return min(q, maximum(d))
+function Distributions.quantile(d::UvBinnedDist, x::Real)
+    0 <= x <= 1 || throw(DomainError(x, "quantile requires value between 0 and 1"))
+    _linear_interpol(d._edge_cdf, d._edge, x)
 end
 
 
-function Random.rand(rng::AbstractRNG, d::UvBinnedDist{T})::T where {T <: AbstractFloat}
-    r::T = rand()
-    next_inds::UnitRange{Int} = searchsorted(d._probabilty_edges, r)
-    next_ind_l::Int = next_inds.start
-    next_ind_r::Int = next_inds.stop
-    if next_ind_l > next_ind_r
-        next_ind_l = next_inds.stop
-        next_ind_r = next_inds.start
-    end
-    ret::T = d.hist.edges[1][next_ind_l]
-    if next_ind_l < next_ind_r
-        ret += d._volumes[next_ind_l] * (d._probabilty_edges[next_ind_r] - r) * d._probabilty_inv_volumes[next_ind_l]
-    end
-    return ret
+function Random.rand(rng::AbstractRNG, d::UvBinnedDist{T}) where T
+    u = rand(T)
+    @assert axes(d._edge) == axes(d._edge_cdf)
+    i_lo, i_hi = _find_idxs_lohi(d._edge_cdf, u)
+    x_lo, x_hi = d._edge[i_lo], d._edge[i_hi]
+    _rand_uniform(rng, T, x_lo, x_hi)
 end

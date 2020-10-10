@@ -7,8 +7,8 @@
 [![Codecov](https://codecov.io/gh/oschulz/EmpiricalDistributions.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/oschulz/EmpiricalDistributions.jl)
 
 A Julia package for empirical probability distributions. Currently
-implements uni- and multivariate binned distributions, backed by
-[StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) histograms.
+implements uni- and multivariate binned distributions that can be created
+from [StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) histograms.
 
 
 ## Documentation
