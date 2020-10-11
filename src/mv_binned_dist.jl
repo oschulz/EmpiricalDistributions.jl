@@ -101,7 +101,7 @@ function Distributions._rand!(rng::AbstractRNG, d::MvBinnedDist{T,N}, A::Abstrac
     u = rand(rng)
     i = searchsortedfirst(d._bin_linidx_cdf, u)
     idx_lo = CartesianIndices(d._bin_pdf)[i]
-    idx_hi = idx_lo + CartesianIndex(1, 1)
+    idx_hi = idx_lo + CartesianIndex(ntuple(i -> 1, Val(N))...)
     x_lo = map(getindex, d._edges, idx_lo.I)
     x_hi = map(getindex, d._edges, idx_hi.I)
     for i in 1:N
