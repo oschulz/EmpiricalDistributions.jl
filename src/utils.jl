@@ -4,7 +4,17 @@
 _bin_left(edge::AbstractVector{<:Real}) = view(edge, firstindex(edge):lastindex(edge)-1)
 _bin_right(edge::AbstractVector{<:Real}) = view(edge, firstindex(edge)+1:lastindex(edge))
 _bin_centers(edge::AbstractVector{<:Real}) = (_bin_left(edge) .+ _bin_right(edge)) ./ 2
+
 _bin_widths(edge::AbstractVector{<:Real}) = _bin_right(edge) .- _bin_left(edge)
+
+# Ranges need special treatment, since subtraction of integer ranges results in "step cannot be zero" error
+function _bin_widths(edge::AbstractRange{<:Real})
+    ref = step(edge)
+    T = typeof(ref)
+    stp = zero(T)
+    n = length(eachindex(edge)) - 1
+    StepRangeLen(ref, stp, n)
+end
 
 
 function _ratio(a::Real, b::Real)
