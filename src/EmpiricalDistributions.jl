@@ -17,5 +17,6 @@ using StatsBase
 include("utils.jl")
 include("uv_binned_dist.jl")
 include("mv_binned_dist.jl")
+include("uv_discrete_dist.jl")
 
 end # module
