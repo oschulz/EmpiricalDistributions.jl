@@ -14,3 +14,6 @@ function UvDiscreteDist(data::Vector{T} where T <: Real)::Distribution{Univariat
     pmf_data = vcat(cdf_data[1],diff(cdf_data)) #create pmf from the cdf
     DiscreteNonParametric(data_clean,pmf_data) #define distribution
 end
+
+#Define mean for truncated DiscreteNonParametric
+StatsBase.mean(f::Distribution{Univariate, Discrete}) = Distributions.dot(pdf.(Ref(f), Distributions.support(f)),Distributions.support(f))
