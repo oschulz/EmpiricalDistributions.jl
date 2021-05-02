@@ -54,6 +54,8 @@ using Adapt, ForwardDiff
     @test isapprox(pdf.(Ref(d), r), pdf.(Ref(true_dist), r), rtol = 0.1)
     @test @inferred(pdf(d, 1000)) == 0
     @test @inferred(pdf(d, -1000)) == 0
+    @test @inferred(pdf(d, first(h.edges[1]))) == 0
+    @test @inferred(pdf(d, last(h.edges[1]))) == 0
  
     @test @inferred(logpdf(d, r[1])) == log(pdf(d, r[1]))
     @test @inferred(logpdf(d, 1000)) == -Inf

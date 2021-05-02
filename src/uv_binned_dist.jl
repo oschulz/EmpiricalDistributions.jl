@@ -97,7 +97,7 @@ Distributions.maximum(d::UvBinnedDist) = last(d._edge)
 function Distributions.pdf(d::UvBinnedDist{T,U}, x::Real) where {T,U}
     if insupport(d, x)
         i = _find_bin(d._edge, d._closed_left, x)
-        convert(U, d._bin_pdf[i])
+        i <= lastindex(d._bin_pdf) ? convert(U, d._bin_pdf[i]) : zero(U)
     else
         zero(U)
     end
