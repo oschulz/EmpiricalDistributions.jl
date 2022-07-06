@@ -7,6 +7,14 @@
 using Documenter
 using EmpiricalDistributions
 
+# Doctest setup
+DocMeta.setdocmeta!(
+    EmpiricalDistributions,
+    :DocTestSetup,
+    :(using EmpiricalDistributions);
+    recursive=true,
+)
+
 makedocs(
     sitename = "EmpiricalDistributions",
     modules = [EmpiricalDistributions],
