@@ -1,6 +1,6 @@
 name = "EmpiricalDistributions"
 uuid = "0bbb1fad-0f24-45fe-94a4-415852c5cc3b"
-version = "0.3.6"
+version = "0.3.7"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
