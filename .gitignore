@@ -1,4 +1,7 @@
-build/
-site/
-
+.DS_Store
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+.ipynb_checkpoints
 .vscode
+Manifest.toml
