@@ -33,6 +33,8 @@ using Adapt
     @test @inferred(size(d)) == (2,)
     @test @inferred(eltype(d)) == Float64
 
+    @test @inferred(params(d)) == (d._edges, d._bin_pdf, d._closed_left)
+
     @test all(isapprox.(mean(true_dist), @inferred(mean(d)), atol = 0.01))
     @test all(isapprox.(mode(true_dist), @inferred(mode(d)), atol = 0.2))
     @test all(isapprox.(var(true_dist), @inferred(var(d)), atol = 0.01))

@@ -85,6 +85,7 @@ Base.length(d::UvBinnedDist) = 1
 Base.size(d::UvBinnedDist) = ()
 Base.eltype(d::UvBinnedDist{T}) where {T} = T
 
+Distributions.params(d::UvBinnedDist) = (d._edge, d._bin_pdf, d._closed_left)
 
 Statistics.mean(d::UvBinnedDist) = d._mean
 StatsBase.mode(d::UvBinnedDist) = d._mode

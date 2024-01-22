@@ -90,6 +90,8 @@ Base.length(d::MvBinnedDist{T,N}) where {T,N} = N
 Base.size(d::MvBinnedDist{T,N}) where {T,N} = (N,)
 Base.eltype(d::MvBinnedDist{T,N}) where {T,N} = T
 
+Distributions.params(d::MvBinnedDist) = (d._edges, d._bin_pdf, d._closed_left)
+
 Statistics.mean(d::MvBinnedDist) = d._mean
 StatsBase.mode(d::MvBinnedDist) = d._mode
 Statistics.var(d::MvBinnedDist) = d._var
