@@ -125,7 +125,7 @@ end
 
 
 function Random.rand(rng::AbstractRNG, d::UvBinnedDist{T}) where T
-    u = rand(T)
+    u = rand(rng, T)
     @assert axes(d._edge) == axes(d._edge_cdf)
     i_lo, i_hi = _find_idxs_lohi(d._edge_cdf, u)
     x_lo, x_hi = d._edge[i_lo], d._edge[i_hi]
