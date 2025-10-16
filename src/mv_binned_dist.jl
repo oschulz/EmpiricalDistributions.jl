@@ -82,7 +82,7 @@ function Adapt.adapt_structure(to, d::MvBinnedDist)
 end
 
 
-Histogram(d::MvBinnedDist) = Histogram(map(Array, d._edges), Array(d._bin_pdf), (d._closed_left ? :left : :right), true)
+StatsBase.Histogram(d::MvBinnedDist) = Histogram(map(Array, d._edges), Array(d._bin_pdf), (d._closed_left ? :left : :right), true)
 Base.convert(::Type{Histogram}, d::MvBinnedDist) = Histogram(d)
 
 

@@ -77,7 +77,7 @@ function Adapt.adapt_structure(to, d::UvBinnedDist)
 end
 
 
-Histogram(d::UvBinnedDist) = Histogram((Array(d._edge),), Array(d._bin_pdf), (d._closed_left ? :left : :right), true)
+StatsBase.Histogram(d::UvBinnedDist) = Histogram((Array(d._edge),), Array(d._bin_pdf), (d._closed_left ? :left : :right), true)
 Base.convert(::Type{Histogram}, d::UvBinnedDist) = Histogram(d)
 
 
