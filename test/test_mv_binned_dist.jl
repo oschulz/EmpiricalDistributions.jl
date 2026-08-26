@@ -48,7 +48,7 @@ using Adapt
     @test all(isapprox.(Σ, fit_dist.Σ.mat, atol = 0.01))
 
     @test @inferred(pdf(d, r[:,1])) isa Real
-    @test isapprox(pdf.(Ref(true_dist), nestedview(r)), pdf.(Ref(d), nestedview(r)), rtol = 0.1)
+    @test isapprox(pdf.(Ref(true_dist), VectorOfSimilarVectors(r)), pdf.(Ref(d), VectorOfSimilarVectors(r)), rtol = 0.1)
     @test @inferred(pdf(d, [1000, 1000])) == 0
     @test @inferred(pdf(d, [-1000, -1000])) == 0
  

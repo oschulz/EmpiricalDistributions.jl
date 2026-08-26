@@ -113,7 +113,7 @@ function Distributions._rand!(rng::AbstractRNG, d::MvBinnedDist{T,N}, A::Abstrac
 end
 
 function Distributions._rand!(rng::AbstractRNG, d::MvBinnedDist{T,N}, A::AbstractMatrix{<:Real}) where {T,N}
-    Distributions._rand!.(Ref(rng), (d,), nestedview(A))
+    Distributions._rand!.(Ref(rng), (d,), VectorOfSimilarVectors(A))
     return A
 end
 
